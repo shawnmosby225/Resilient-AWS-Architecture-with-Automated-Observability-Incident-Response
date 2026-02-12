@@ -6,7 +6,7 @@
 resource "aws_cloudwatch_log_group" "chewbacca_waf_log_group01" {
   count = var.waf_log_destination == "cloudwatch" ? 1 : 0
 
-  # NOTE: AWS requires WAF log destination names start with aws-waf-logs- (students must not rename this).
+  # NOTE: AWS requires WAF log destination names start with aws-waf-logs-
   name              = "aws-waf-logs-${var.project_name}-webacl01"
   retention_in_days = var.waf_log_retention_days
 
@@ -23,10 +23,6 @@ resource "aws_wafv2_web_acl_logging_configuration" "chewbacca_waf_logging01" {
   log_destination_configs = [
     aws_cloudwatch_log_group.chewbacca_waf_log_group01[0].arn
   ]
-
-  # TODO: Students can add redacted_fields (authorization headers, cookies, etc.) as a stretch goal.
-  # redacted_fields { ... }
-
   depends_on = [
     aws_wafv2_web_acl.chewbacca_waf01,
     aws_cloudwatch_log_resource_policy.chewbacca_waf_cw_policy01 # Add this!
