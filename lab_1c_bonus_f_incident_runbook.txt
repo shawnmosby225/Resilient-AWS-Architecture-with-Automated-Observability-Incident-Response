@@ -1,0 +1,106 @@
+A) WAF Queries (CloudWatch Logs Insights) 
+
+    A1) “What’s happening right now?” (Top actions: ALLOW/BLOCK) fields @timestamp, action | stats count() as hits by action | sort hits desc
+    
+        @ 07:28:08 UTC to 07:43:08 UTC on January 24, 2026, ALLOW | 8 | aws-waf-logs-lew-webacl01
+    
+    "The logs show that AWS WAF processed a total of 8 web requests during the 15-minute period from 07:28:08 UTC to 07:43:08 UTC on January 24, 2026.
+        - All 8 requests were allowed through the web application firewall, indicating that no requests were blocked, challenged, or subjected to other restrictive actions. 
+        - The traffic volume was relatively low with an average of approximately 0.5 requests per minute. 
+        - The uniform ALLOW action across all requests indicates that the incoming traffic did not trigger any WAF rules that would result in blocking or other protective measures. 
+        - No denied, blocked, or rate-limited requests were observed during this timeframe."
+
+    A2) "Top client IPs (who is hitting us the most?)"
+        152.42.157.60  - 2 hits
+        64.227.76.184  - 1 hit
+        93.174.93.12   - 1 hit
+        43.206.201.131 - 1 hit
+        34.45.7.206    - 1 hit
+        185.16.39.146  - 1 hit 
+        106.161.65.206 - 1 hit
+    "The logs show traffic from 7 distinct client IP addresses during the 15-minute observation period from 07:34:33 UTC to 07:49:33 UTC on January 24, 2026. 
+     - One client IP address (152.42.157.60) generated 2 requests, representing 25% of the total traffic volume. 
+     - The remaining 6 client IP addresses each made exactly 1 request, contributing equally to the traffic distribution.
+     - The total request volume across all clients was 8 hits during this timeframe.
+     - The traffic pattern indicates relatively low activity with no single IP address dominating the request volume significantly. 
+     - All client IP addresses appear to originate from different network ranges, suggesting geographically distributed access patterns.
+     - The limited number of requests per IP address indicates either low overall traffic or effective rate limiting mechanisms."
+    
+    A3) Top requested URIs (what are they trying to reach?)
+        /.git/config   - 2 hits
+        /favicon.ico   - 2 hits
+        /ws-api/v3     - 1 hit
+        /              - 1 hit
+    "The logs show 4 distinct URIs were accessed during the 15-minute time window, generating a total of 6 hits. 
+     - The most frequently accessed endpoints were the Git configuration file path and the favicon, each receiving 2 hits. 
+     - A WebSocket API version 3 endpoint and the root path each received 1 hit. 
+     - The traffic volume was relatively low with only 6 total requests across all URIs. 
+     - The presence of requests to the Git configuration file path indicates attempts to access version control system files. 
+     - The distribution shows an even split between the top two URIs and the remaining two endpoints."
+    
+    A4) Blocked requests only (who/what is being blocked?)
+        43.206.201.131  - /ws-api/v3 - blocked 2 times
+    "The logs show that AWS WAF blocked only 2 requests during the one-hour period from 07:02:02 UTC to 08:02:02 UTC on January 24, 2026.
+     - All blocked requests originated from the client IP address 43.206.201.131 and targeted the URI path /ws-api/v3.
+     - This represents the complete blocking activity captured by the WAF during this timeframe, with no other client IPs or URI paths being blocked. 
+     - The low volume of blocked requests indicates minimal security threat activity or policy violations detected by the WAF rules during this period."
+    
+    A5) Which WAF rule is doing the blocking? 
+        AWSManagedRulesCommonRuleSet  -  MANAGED_RULE_GROUP - 2 blocks
+    "The logs show that during the one-hour period from 07:05:42 UTC to 08:05:42 UTC on January 24, 2026, AWS WAF blocked a total of 2 requests.
+     - All blocked requests were terminated by the AWSManagedRulesCommonRuleSet, which is a managed rule group type.
+     - This represents the only rule that triggered blocks during the analyzed timeframe. 
+     - The low volume of blocked requests indicates minimal malicious or unwanted traffic was detected by the WAF configuration.
+     - No other terminating rules contributed to blocking activity during this period."
+    
+    A6) Rate of blocks over time (did it spike?)
+        94.26.88.32  -  /.git/config - 2 hits
+    "The logs show very limited suspicious activity during the analyzed time period. 
+     - Only one client IP address 94.26.88.32 was detected making requests to potentially sensitive endpoints, specifically targeting the Git configuration file path /.git/config with 2 total hits.
+     - No other common attack vectors such as WordPress login pages, XML-RPC endpoints, environment files, admin panels, or phpMyAdmin interfaces were accessed during this timeframe. 
+     - The low volume of activity indicates minimal automated scanning or attack attempts against the monitored web application. 
+     - The single detected pattern involves attempts to access Git repository configuration files, which could indicate reconnaissance activity to gather information about the application's source code structure."
+    
+    A7) Suspicious scanners (common patterns: admin paths, wp-login, etc.) 
+        94.26.88.32  -  /.git/config - 2 hits
+    "The logs show that during the one-hour period analyzed, only one suspicious request pattern was detected by the AWS WAF. 
+     - A single client IP address 94.26.88.32 made 2 requests to the Git configuration file path /.git/config.
+     - No other common attack vectors such as WordPress login pages, XML-RPC endpoints, environment files, admin panels, phpMyAdmin, or generic login pages were targeted during this timeframe.
+     - The total suspicious activity consisted of just 2 hits from one source, representing a very low volume of potential security probing attempts. 
+     - The Git configuration file requests indicate an attempt to access version control system files that could contain sensitive repository information."
+    
+    A8) Country/geo (if present in your WAF logs)
+        US - 3 hits
+        PL - 1 hit
+    "The logs show web traffic originating from two countries during the analyzed time period. 
+     - The United States generated three requests, representing 75% of the total traffic volume. 
+     - Poland contributed one request, accounting for the remaining 25% of traffic. 
+     - The total request volume was four hits across both countries. 
+     - No other countries generated traffic during this 15-minute window. 
+     - The traffic distribution indicates a clear dominance of US-based requests over other geographic regions."
+    
+    B1) Count errors over time (this should line up with the alarm window)
+    "The logs show a consistent baseline of 4 errors per minute throughout most of the monitored period from 07:25:00 UTC to 08:22:00 UTC across the EC2 applications. 
+     - Notable spikes occurred at 07:39:00 UTC with 8 errors, 07:37:00 UTC with 6 errors, and several instances of 5 errors at timestamps including 07:31:00 UTC, 07:34:00 UTC, 07:42:00 UTC, 07:46:00 UTC, 07:49:00 UTC, 07:52:00 UTC, 08:02:00 UTC, 08:04:00 UTC, 08:06:00 UTC, 08:07:00 UTC, 08:15:00 UTC, and 08:17:00 UTC. 
+     - A single drop below the baseline occurred at 07:45:00 UTC with only 3 errors. 
+     - The error pattern demonstrates relatively stable error activity with periodic increases, maintaining an average of approximately 4.2 errors per minute across the entire time series. 
+     - The highest concentration of elevated error counts appeared during the 07:30-08:10 UTC timeframe, with the most significant spike reaching double the baseline level at 07:39:00 UTC. 
+     - Note: The first and last points were ignored in the summary as they do not cover a full bin period."
+
+    B2) Show the most recent DB failures (triage view)
+    " We did not sustain any database failures during the time period." 
+
+    B3) “Is it creds or network?”
+
+    B4) Extract structured fields (Requires log JSON)
+
+    Project Name: Lew-Chewbacca-Growl
+
+WAF Log Group: aws-waf-logs-lew-webacl01
+
+App Log Group: /aws/ec2/lew-rds-app
+
+Verification URL: https://app.lewsdomain.com/
+
+    Step 1: Spikes in logs matched alarm
+    Step 2: WAF is quiet but App errors are high, "This is a backend incident. Our infrastructure is broken."
