@@ -1,5 +1,5 @@
 ############################################
-# Option 1: CloudWatch Logs destination
+CloudWatch Logs destination
 ############################################
 
 # Explanation: WAF logs in CloudWatch are your “blaster-cam footage”—fast search, fast triage, fast truth.
