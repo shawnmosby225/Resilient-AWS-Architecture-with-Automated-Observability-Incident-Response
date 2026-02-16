@@ -2,17 +2,12 @@
 # Bonus A - Data + Locals
 ############################################
 
-# Explanation: Chewbacca wants to know “who am I in this galaxy?” so ARNs can be scoped properly.
 data "aws_caller_identity" "chewbacca_self01" {}
 
-# Explanation: Region matters—hyperspace lanes change per sector.
 data "aws_region" "chewbacca_region01" {}
 
 locals {
-  # Explanation: Name prefix is the roar that echoes through every tag.
   chewbacca_prefix = var.project_name
-
-  # TODO: Students should lock this down after apply using the real secret ARN from outputs/state
   chewbacca_secret_arn = aws_secretsmanager_secret.chewbacca_db_secret01
 }
 
@@ -20,7 +15,6 @@ locals {
 # Move EC2 into PRIVATE subnet (no public IP)
 ############################################
 
-# Explanation: Chewbacca hates exposure—private subnets keep your compute off the public holonet.
 resource "aws_instance" "chewbacca_ec201_private_bonus" {
   ami                         = var.ec2_ami_id
   instance_type               = var.ec2_instance_type
@@ -29,9 +23,6 @@ resource "aws_instance" "chewbacca_ec201_private_bonus" {
   iam_instance_profile        = aws_iam_instance_profile.chewbacca_instance_profile01.name
   associate_public_ip_address = false
   user_data                   = file("${path.module}/user_data.sh")
-
-  # TODO: Students should remove/disable SSH inbound rules entirely and rely on SSM. (never had those rules added in the first place)
-  # TODO: Students add user_data that installs app + CW agent; for true hard mode use a baked AMI.
 
   tags = {
     Name = "${local.chewbacca_prefix}-ec201-private"
@@ -42,14 +33,10 @@ resource "aws_instance" "chewbacca_ec201_private_bonus" {
 # Security Group for VPC Interface Endpoints
 ############################################
 
-# Explanation: Even endpoints need guards—Chewbacca posts a Wookiee at every airlock.
 resource "aws_security_group" "chewbacca_vpce_sg01" {
   name        = "${local.chewbacca_prefix}-vpce-sg01"
   description = "SG for VPC Interface Endpoints"
   vpc_id      = aws_vpc.chewbacca_vpc01.id
-
-  # TODO: Students must allow inbound 443 FROM the EC2 SG (or VPC CIDR) to endpoints.
-  # NOTE: Interface endpoints ENIs receive traffic on 443.
 
   tags = {
     Name = "${local.chewbacca_prefix}-vpce-sg01"
@@ -68,7 +55,6 @@ resource "aws_security_group_rule" "endpoint_ingress_from_ec2" {
 # VPC Endpoint - S3 (Gateway)
 ############################################
 
-# Explanation: S3 is the supply depot—without this, your private world starves (updates, artifacts, logs).
 resource "aws_vpc_endpoint" "chewbacca_vpce_s3_gw01" {
   vpc_id            = aws_vpc.chewbacca_vpc01.id
   service_name      = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.s3"
@@ -87,7 +73,6 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_s3_gw01" {
 # VPC Endpoints - SSM (Interface)
 ############################################
 
-# Explanation: SSM is your Force choke—remote control without SSH, and nobody sees your keys.
 resource "aws_vpc_endpoint" "chewbacca_vpce_ssm01" {
   vpc_id              = aws_vpc.chewbacca_vpc01.id
   service_name        = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.ssm"
@@ -102,7 +87,6 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_ssm01" {
   }
 }
 
-# Explanation: ec2messages is the Wookiee messenger—SSM sessions won’t work without it.
 resource "aws_vpc_endpoint" "chewbacca_vpce_ec2messages01" {
   vpc_id              = aws_vpc.chewbacca_vpc01.id
   service_name        = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.ec2messages"
@@ -117,7 +101,6 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_ec2messages01" {
   }
 }
 
-# Explanation: ssmmessages is the holonet channel—Session Manager needs it to talk back.
 resource "aws_vpc_endpoint" "chewbacca_vpce_ssmmessages01" {
   vpc_id              = aws_vpc.chewbacca_vpc01.id
   service_name        = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.ssmmessages"
@@ -136,7 +119,6 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_ssmmessages01" {
 # VPC Endpoint - CloudWatch Logs (Interface)
 ############################################
 
-# Explanation: CloudWatch Logs is the ship’s black box—Chewbacca wants crash data, always.
 resource "aws_vpc_endpoint" "chewbacca_vpce_logs01" {
   vpc_id              = aws_vpc.chewbacca_vpc01.id
   service_name        = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.logs"
@@ -155,7 +137,6 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_logs01" {
 # VPC Endpoint - Secrets Manager (Interface)
 ############################################
 
-# Explanation: Secrets Manager is the locked vault—Chewbacca doesn’t put passwords on sticky notes.
 resource "aws_vpc_endpoint" "chewbacca_vpce_secrets01" {
   vpc_id              = aws_vpc.chewbacca_vpc01.id
   service_name        = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.secretsmanager"
@@ -174,7 +155,6 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_secrets01" {
 # Optional: VPC Endpoint - KMS (Interface)
 ############################################
 
-# Explanation: KMS is the encryption kyber crystal—Chewbacca prefers locked doors AND locked safes.
 resource "aws_vpc_endpoint" "chewbacca_vpce_kms01" {
   vpc_id              = aws_vpc.chewbacca_vpc01.id
   service_name        = "com.amazonaws.${data.aws_region.chewbacca_region01.name}.kms"
@@ -190,10 +170,9 @@ resource "aws_vpc_endpoint" "chewbacca_vpce_kms01" {
 }
 
 ############################################
-# Least-Privilege IAM (BONUS A)
+# Least-Privilege IAM 
 ############################################
 
-# Explanation: Chewbacca doesn’t hand out the Falcon keys—this policy scopes reads to your lab paths only.
 resource "aws_iam_policy" "chewbacca_leastpriv_read_params01" {
   name        = "${local.chewbacca_prefix}-lp-ssm-read01"
   description = "Least-privilege read for SSM Parameter Store under /lab/db/*"
@@ -217,15 +196,13 @@ resource "aws_iam_policy" "chewbacca_leastpriv_read_params01" {
   })
 }
 
-#### We have the policy to read/lab/db/endpoint, but we need the parameter itself.
-
 resource "aws_ssm_parameter" "db-endpoint" {
   name  = "/lab/db/endpoint"
   type  = "String"
   value = aws_db_instance.chewbacca_rds01.endpoint
   overwrite = true
 }
-# Explanation: Chewbacca only opens *this* vault—GetSecretValue for only your secret (not the whole planet).
+
 resource "aws_iam_policy" "chewbacca_leastpriv_read_secret01" {
   name        = "${local.chewbacca_prefix}-lp-secrets-read01"
   description = "Least-privilege read for the lab DB secret"
@@ -246,7 +223,6 @@ resource "aws_iam_policy" "chewbacca_leastpriv_read_secret01" {
   })
 }
 
-# Explanation: When the Falcon logs scream, this lets Chewbacca ship logs to CloudWatch without giving away the Death Star plans.
 resource "aws_iam_policy" "chewbacca_leastpriv_cwlogs01" {
   name        = "${local.chewbacca_prefix}-lp-cwlogs01"
   description = "Least-privilege CloudWatch Logs write for the app log group"
@@ -270,7 +246,6 @@ resource "aws_iam_policy" "chewbacca_leastpriv_cwlogs01" {
   })
 }
 
-# Explanation: Attach the scoped policies—Chewbacca loves power, but only the safe kind.
 resource "aws_iam_role_policy_attachment" "chewbacca_attach_lp_params01" {
   role       = aws_iam_role.chewbacca_ec2_role01.name
   policy_arn = aws_iam_policy.chewbacca_leastpriv_read_params01.arn
