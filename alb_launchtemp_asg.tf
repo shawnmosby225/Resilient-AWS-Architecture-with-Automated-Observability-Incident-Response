@@ -1,24 +1,11 @@
-############################################
-# Bonus B - ALB (Public) -> Target Group (Private EC2) + TLS + WAF + Monitoring
-############################################
-
 locals {
-  # Explanation: This is the roar address — where the galaxy finds your app.
   chewbacca_fqdn = "${var.app_subdomain}.${var.domain_name}"
 }
 
-############################################
-# Security Group: ALB
-############################################
-
-# Explanation: The ALB SG is the blast shield — only allow what the Rebellion needs (80/443).
 resource "aws_security_group" "chewbacca_alb_sg01" {
   name        = "${var.project_name}-alb-sg01"
   description = "ALB security group"
   vpc_id      = aws_vpc.chewbacca_vpc01.id
-
-  # TODO: students add inbound 80/443 from 0.0.0.0/0
-  # TODO: students set outbound to target group port (usually 80) to private targets
 
   tags = {
     Name = "${var.project_name}-alb-sg01"
@@ -49,7 +36,7 @@ resource "aws_security_group_rule" "alb_egress_to_tg" {
   cidr_blocks              = [aws_vpc.chewbacca_vpc01.cidr_block]
   security_group_id = aws_security_group.chewbacca_alb_sg01.id
 } 
-# Explanation: Chewbacca only opens the hangar door — allow ALB -> EC2 on app port (e.g., 80).
+
 resource "aws_security_group_rule" "chewbacca_ec2_ingress_from_alb01" {
   type                     = "ingress"
   security_group_id        = aws_security_group.chewbacca_ec2_sg01.id
@@ -57,24 +44,15 @@ resource "aws_security_group_rule" "chewbacca_ec2_ingress_from_alb01" {
   to_port                  = 80
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.chewbacca_alb_sg01.id
-
-  # TODO: students ensure EC2 app listens on this port (or change to 8080, etc.)
 }
 
-############################################
-# Application Load Balancer
-############################################
-
-# Explanation: The ALB is your public customs checkpoint — it speaks TLS and forwards to private targets.
 resource "aws_lb" "chewbacca_alb01" {
   name               = "${var.project_name}-alb01"
   load_balancer_type = "application"
   internal           = false
-
   security_groups = [aws_security_group.chewbacca_alb_sg01.id]
   subnets         = aws_subnet.chewbacca_public_subnets[*].id
 
-  # TODO: students can enable access logs to S3 as a stretch goal
 access_logs {
     bucket  = aws_s3_bucket.chewbacca_alb_logs_bucket01[0].bucket
     prefix  = var.alb_access_logs_prefix
@@ -86,18 +64,12 @@ access_logs {
   }
 }
 
-############################################
-# Target Group + Attachment
-############################################
-
-# Explanation: Target groups are Chewbacca’s “who do I forward to?” list — private EC2 lives here.
 resource "aws_lb_target_group" "chewbacca_tg01" {
   name     = "${var.project_name}-tg01"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.chewbacca_vpc01.id
 
-  # TODO: students set health check path to something real (e.g., /health)
   health_check {
     enabled             = true
     interval            = 30
@@ -115,48 +87,29 @@ resource "aws_lb_target_group" "chewbacca_tg01" {
   }
 }
 
-# Explanation: Chewbacca personally introduces the ALB to the private EC2 — “this is my friend, don’t shoot.”
 resource "aws_lb_target_group_attachment" "chewbacca_tg_attach01" {
   target_group_arn = aws_lb_target_group.chewbacca_tg01.arn
   target_id        = aws_instance.chewbacca_ec201_private_bonus.id
   port             = 80
-
-  # TODO: students ensure EC2 security group allows inbound from ALB SG on this port (rule above)
 }
 
 ############################################
 # ACM Certificate (TLS) for app.chewbacca-growl.com
 ############################################
 
-# Explanation: TLS is the diplomatic passport — browsers trust you, and Chewbacca stops growling at plaintext.
 resource "aws_acm_certificate" "chewbacca_acm_cert01" {
   domain_name       = local.chewbacca_fqdn
   validation_method = var.certificate_validation_method
-
-  # TODO: students can add subject_alternative_names like var.domain_name if desired
 
   tags = {
     Name = "${var.project_name}-acm-cert01"
   }
 }
 
-# Explanation: DNS validation records are the “prove you own the planet” ritual — Route53 makes this elegant.
-# TODO: students implement aws_route53_record(s) if they manage DNS in Route53.
-# resource "aws_route53_record" "chewbacca_acm_validation" { ... }
-
-# Explanation: Once validated, ACM becomes the “green checkmark” — until then, ALB HTTPS won’t work.
-#resource "aws_acm_certificate_validation" "chewbacca_acm_validation01" {
-  #certificate_arn = aws_acm_certificate.chewbacca_acm_cert01.arn
-
-  # TODO: if using DNS validation, students must pass validation_record_fqdns
-   #validation_record_fqdns = [aws_route53_record.chewbacca_acm_validation.fqdn]
- #}
-
 ############################################
 # ALB Listeners: HTTP -> HTTPS redirect, HTTPS -> TG
 ############################################
 
-# Explanation: HTTP listener is the decoy airlock — it redirects everyone to the secure entrance.
 resource "aws_lb_listener" "chewbacca_http_listener01" {
   load_balancer_arn = aws_lb.chewbacca_alb01.arn
   port              = 80
@@ -172,7 +125,6 @@ resource "aws_lb_listener" "chewbacca_http_listener01" {
   }
 }
 
-# Explanation: HTTPS listener is the real hangar bay — TLS terminates here, then traffic goes to private targets.
 resource "aws_lb_listener" "chewbacca_https_listener01" {
   load_balancer_arn = aws_lb.chewbacca_alb01.arn
   port              = 443
@@ -192,10 +144,8 @@ resource "aws_lb_listener" "chewbacca_https_listener01" {
 # WAFv2 Web ACL (Basic managed rules)
 ############################################
 
-# Explanation: WAF is the shield generator — it blocks the cheap blaster fire before it hits your ALB.
 resource "aws_wafv2_web_acl" "chewbacca_waf01" {
   count = var.enable_waf ? 1 : 0
-
   name  = "${var.project_name}-waf01"
   scope = "REGIONAL"
 
@@ -209,7 +159,6 @@ resource "aws_wafv2_web_acl" "chewbacca_waf01" {
     sampled_requests_enabled   = true
   }
 
-  # Explanation: AWS managed rules are like hiring Rebel commandos — they’ve seen every trick.
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 1
@@ -237,10 +186,8 @@ resource "aws_wafv2_web_acl" "chewbacca_waf01" {
   }
 }
 
-# Explanation: Attach the shield generator to the customs checkpoint — ALB is now protected.
 resource "aws_wafv2_web_acl_association" "chewbacca_waf_assoc01" {
   count = var.enable_waf ? 1 : 0
-
   resource_arn = aws_lb.chewbacca_alb01.arn
   web_acl_arn  = aws_wafv2_web_acl.chewbacca_waf01[0].arn
 }
@@ -249,7 +196,6 @@ resource "aws_wafv2_web_acl_association" "chewbacca_waf_assoc01" {
 # CloudWatch Alarm: ALB 5xx -> SNS
 ############################################
 
-# Explanation: When the ALB starts throwing 5xx, that’s the Falcon coughing — page the on-call Wookiee.
 resource "aws_cloudwatch_metric_alarm" "chewbacca_alb_5xx_alarm01" {
   alarm_name          = "${var.project_name}-alb-5xx-alarm01"
   comparison_operator = "GreaterThanOrEqualToThreshold"
@@ -276,11 +222,9 @@ resource "aws_cloudwatch_metric_alarm" "chewbacca_alb_5xx_alarm01" {
 # CloudWatch Dashboard (Skeleton)
 ############################################
 
-# Explanation: Dashboards are your cockpit HUD — Chewbacca wants dials, not vibes.
 resource "aws_cloudwatch_dashboard" "chewbacca_dashboard01" {
   dashboard_name = "${var.project_name}-dashboard01"
 
-  # TODO: students can expand widgets; this is a minimal workable skeleton
   dashboard_body = jsonencode({
     widgets = [
       {
